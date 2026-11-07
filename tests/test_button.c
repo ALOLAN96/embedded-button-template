@@ -181,3 +181,39 @@ TEST test_example_wrap(void)
     CHECK(APP_ButtonExample_Poll(2U) == MOD_BUTTON_STATUS_OK); CHECK(reads == 2U);
     CHECK(APP_ButtonExample_GetMissedSlots() == 0U); return 0;
 }
+
+/** @brief 初始化复制配置，调用者随后改写配置表不影响已绑定 ID。 */
+TEST test_config_copy(void)
+{
+    MOD_ButtonConfig_t temporary = {255U, 0U};
+    CHECK(MOD_Button_Stop() == MOD_BUTTON_STATUS_OK);
+    used = 0U; levels[255] = 0U;
+    CHECK(MOD_Button_InitState(&temporary, 1U, read_level, receive) == MOD_BUTTON_STATUS_OK);
+    temporary.id = 4U; temporary.activeLevel = 1U;
+    CHECK(MOD_Button_Start() == MOD_BUTTON_STATUS_OK);
+    CHECK(scan(3U) == 0);
+    CHECK(used == 1U && events[0].id == 255U && events[0].event == MOD_BUTTON_EVENT_DOWN);
+    return 0;
+}
+/** @brief 输入采样时同步反入同样必须被完整保护。 */
+static uint8_t read_reentrant(uint8_t id)
+{
+    if (MOD_Button_Stop() != MOD_BUTTON_STATUS_BUSY ||
+        MOD_Button_Start() != MOD_BUTTON_STATUS_BUSY ||
+        MOD_Button_ProcessTick() != MOD_BUTTON_STATUS_BUSY ||
+        MOD_Button_InitState(config, 2U, read_level, receive) != MOD_BUTTON_STATUS_BUSY) {
+        reenterFailed = 1;
+    }
+    return levels[id];
+}
+/** @brief 输入回调反入不能破坏对象注册和当前扫描。 */
+TEST test_input_reentry(void)
+{
+    CHECK(MOD_Button_Stop() == MOD_BUTTON_STATUS_OK);
+    used = 0U; reenterFailed = 0; levels[7] = 0U; levels[200] = 0U;
+    CHECK(MOD_Button_InitState(config, 2U, read_reentrant, receive) == MOD_BUTTON_STATUS_OK);
+    CHECK(MOD_Button_Start() == MOD_BUTTON_STATUS_OK);
+    CHECK(scan(3U) == 0);
+    CHECK(reenterFailed == 0 && used == 1U && events[0].id == 7U);
+    return 0;
+}
