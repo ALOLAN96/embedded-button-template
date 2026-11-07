@@ -1,0 +1,10 @@
+{
+  "repository": "https://github.com/ALOLAN96/MultiButton",
+  "commit": "397a30ef45027da5a603e16358a651a3c193c64a",
+  "local_changes": "No source changes; text files serialized as UTF-8 with LF and final newline",
+  "sha256": {
+    "multi_button.c": "18139e71e3e18cb314bfa9919fd5b7683eaf1713340e23a069c3f6e5b30bcfec",
+    "multi_button.h": "095a7cfd637f4598069a7840a991bd997f2edffa5bd4d1004501e1ab403c2282",
+    "LICENSE": "54b3df8061351cf0fb26da83ecb5d03c8bf85001dd9778ddd05d24bf3c506124"
+  }
+}
