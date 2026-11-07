@@ -25,7 +25,8 @@ common = ['-std=c99', '-ffreestanding', '-fno-builtin', '-fno-stack-protector',
           '-Wall', '-Wextra']
 tests = ['test_not_initialized', 'test_debounce', 'test_single', 'test_double_repeat',
          'test_long', 'test_lifecycle', 'test_parameters', 'test_reentry_and_isolation',
-         'test_start_rollback', 'test_example_schedule', 'test_example_wrap']
+         'test_start_rollback', 'test_example_schedule', 'test_example_wrap',
+         'test_config_copy', 'test_input_reentry']
 failures = []
 for opt in ['0', '2']:
     out = root / 'build' / ('host-O' + opt)
@@ -58,3 +59,25 @@ for index, source in enumerate(sources):
 print('PASS 32-bit compile (not executed)', flush=True)
 if failures:
     raise SystemExit(f'{len(failures)} failed behavior tests: {failures}')
+
+# Compile and execute an independent DLL for each supported capacity extreme.
+for capacity in (1, 256):
+    out = root / 'build' / ('capacity-' + str(capacity))
+    out.mkdir(parents=True, exist_ok=True)
+    objects = []
+    for index, source in enumerate(['tests/test_capacity.c', 'tests/runtime.c',
+                                    'User/Module/mod_button.c',
+                                    'User/ThirdParty/MultiButton/multi_button.c']):
+        obj = out / f'{index}.obj'
+        strict = [] if 'ThirdParty' in source else ['-Werror', '-Wconversion', '-Wsign-conversion']
+        subprocess.run([str(clang), *common, *strict, '-DMOD_BUTTON_MAX_COUNT=' + str(capacity),
+                        '-O2', '-c', source, '-o', str(obj)], cwd=root, check=True)
+        objects.append(str(obj))
+    dll = out / 'tests.dll'
+    subprocess.run([str(clang.with_name('lld.exe')), '-flavor', 'link', '/dll', '/noentry',
+                    '/nodefaultlib', f'/out:{dll}', *objects], check=True)
+    library = ctypes.CDLL(str(dll))
+    result = library.test_configured_capacity()
+    if result:
+        raise AssertionError(f'capacity {capacity}: test source line {result}')
+    print(f'PASS configured capacity {capacity}', flush=True)
